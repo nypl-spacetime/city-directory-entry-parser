@@ -54,8 +54,8 @@ class TokenInterpret {
     return token
       .replace(/ /g, '')
       .split('')
-      .map((char) => char.toUpperCase() == char && isNaN(char))
-      .reduce((acc, val) => acc + (!!val ? 1 : 0), 0) / token.replace(/ /g, '').length
+      .map((char) => char.toUpperCase() === char && isNaN(char))
+      .reduce((acc, val) => acc + (val ? 1 : 0), 0) / token.replace(/ /g, '').length
   }
 
   static isKnownPredicate (token) {
@@ -66,15 +66,10 @@ class TokenInterpret {
 function tokenize (line) {
   const token1 = line.split(/(,|\.\s)/).map(R.trim)
   const token2 = token1.filter((elem) => !(/^\s*[,\.]\s*$/.test(elem)))
+  const token3 = R.flatten(token2.map((token) => jitterSplit(token)))
+    .filter(R.length)
 
-  t3 = []
-  token2.forEach(function (token) {
-    t3 = t3.concat(jitterSplit(token))
-  })
-  t3 = t3.filter((elem) => {
-    return elem.length > 0
-  })
-  return t3
+  return token3
 }
 
 /* Split token into two if begins or ends with a single character */
@@ -159,44 +154,48 @@ function mostLikelyClass (token_decision_object_array) {
       'predicate': 0.0,
       'ambiguous': 0.0
     }
-    entry['votes'].forEach(function (vote) {
+
+    entry.votes.forEach((vote) => {
       entries = Object.entries(vote)
       k = entries[0][0]
       v = entries[0][1]
       sums[k] += v
     })
-    modified_entry['sums'] = sums
+
+    modified_entry.sums = sums
     return modified_entry
   })
 }
 
-function winnerTakeAll (array_mostLikelyClasses) {
-  return array_mostLikelyClasses.map((entry) => {
+function winnerTakeAll (mostLikelyClasses) {
+  return mostLikelyClasses.map((entry) => {
     modified_entry = entry
-    modified_entry['winningClass'] = Object.entries(entry['sums']).reduce((acc, val) => {
+    modified_entry.winningClass = Object.entries(entry.sums).reduce((acc, val) => {
       return (val[1] > acc[1]) ? val : acc
     })
+
     return modified_entry
   })
 }
 
-function recount_votes (token_decision_object) {
+function recountVotes (token_decision_object) {
   modified_entry = token_decision_object
   sums = {
-    'occupationComponent': 0.0,
-    'nameComponent': 0.0,
-    'addressComponent': 0.0,
-    'predicate': 0.0,
-    'ambiguous': 0.0
+    occupationComponent: 0,
+    nameComponent: 0,
+    addressComponent: 0,
+    predicate: 0,
+    ambiguous: 0
   }
-  token_decision_object['votes'].forEach(function (vote) {
+
+  token_decision_object.votes.forEach((vote) => {
     entries = Object.entries(vote)
     k = entries[0][0]
     v = entries[0][1]
     sums[k] += v
   })
-  modified_entry['sums'] = sums
-  modified_entry['winningClass'] = Object.entries(modified_entry['sums']).reduce((acc, val) => {
+  modified_entry.sums = sums
+  modified_entry.winningClass = Object.entries(modified_entry.sums).reduce((acc, val) => {
     return (val[1] > acc[1]) ? val : acc
   })
   return modified_entry
@@ -216,10 +215,10 @@ function createLabeledRecord (line) {
 
 function modifyProbabilityOfSubsequent (acceptable, vote, decisions, currentIndex) {
   if (currentIndex + 1 < decisions.length) {
-    nextDecision = decisions[currentIndex + 1]
+    const nextDecision = decisions[currentIndex + 1]
     if (nextDecision.winningClass != Object.keys(vote)[0] && acceptable.includes(nextDecision.winningClass[0])) {
       decisions[currentIndex + 1].votes.push(vote)
-      decisions[currentIndex + 1] = recount_votes(decisions[currentIndex + 1])
+      decisions[currentIndex + 1] = recountVotes(decisions[currentIndex + 1])
       return [decisions[currentIndex + 1], currentIndex]
     } else {
       return modifyProbabilityOfSubsequent(acceptable, vote, decisions, currentIndex + 1)
@@ -238,13 +237,14 @@ function subsequentIsNotConfident (decisions, currentIndex) {
 
 // Returns a record with labeled attributes
 function consolidateFeatures (allDecisions) {
-  record = {
-    'subject': [],
-    'location': []
+  const record = {
+    subject: [],
+    location: []
   }
+
   allDecisions.forEach((token, index) => {
-    parsedClass = token.winningClass[0]
-    tokenValue = token.token
+    const parsedClass = token.winningClass[0]
+    const tokenValue = token.token
 
     switch (parsedClass) {
       case 'nameComponent':
@@ -269,17 +269,17 @@ function consolidateFeatures (allDecisions) {
             if (!record.subject.length == 0) {
               record.subject[0].occupation = 'widow'
             }
-            deceased_name = lookForNameOfDeceased(allDecisions, index)
-            if (deceased_name) {
+            const deceasedName = lookForNameOfDeceased(allDecisions, index)
+            if (deceasedName) {
               record.subject.push({
-                value: deceased_name,
+                value: deceasedName,
                 type: 'deceased spouse of primary'
               })
             }
             break
           case 'h':
             modifyProbabilityOfSubsequent(['occupationComponent', 'nameComponent'], {
-              'addressComponent': 1.0
+              'addressComponent': 1
             }, allDecisions, index)
             attachToNext(allDecisions, index, 'addressComponent', [{
               'type': 'home'
@@ -287,7 +287,7 @@ function consolidateFeatures (allDecisions) {
             break
           case 'r':
             modifyProbabilityOfSubsequent(['occupationComponent', 'nameComponent'], {
-              'addressComponent': 1.0
+              'addressComponent': 1
             }, allDecisions, index)
             attachToNext(allDecisions, index, 'addressComponent', [{
               'position': 'rear'
@@ -299,13 +299,12 @@ function consolidateFeatures (allDecisions) {
 
             // check if last token was parsed as a name; if so, add it to the name
             if (allDecisions[index - 1]) {
-              if (allDecisions[index - 1]['winningClass'][0] == 'nameComponent') {
-                if (record['subject'][0]) {
-                  record['subject'][0]['value'] = record['subject'][0]['value'] + ' ' + tokenValue
+              if (allDecisions[index - 1].winningClass[0] == 'nameComponent') {
+                if (record.subject[0]) {
+                  record.subject[0].value = record.subject[0].value + ' ' + tokenValue
                 }
               } else if (TokenInterpret.matchesCardinalDir(tokenValue)) {
-                console.log('treating as address: ' + tokenValue)
-                treat_token_as_addressComponent(token, allDecisions, index, record)
+                treatTokenAsAddressComponent(token, allDecisions, index, record)
               }
             }
             break
@@ -313,51 +312,52 @@ function consolidateFeatures (allDecisions) {
         }
         break
       case 'addressComponent':
-        treat_token_as_addressComponent(token, allDecisions, index, record)
+        treatTokenAsAddressComponent(token, allDecisions, index, record)
         break
     }
   })
   return record
 }
 
-function treat_token_as_addressComponent (parsedToken, allDecisions, currentIndex, record) {
+function treatTokenAsAddressComponent (parsedToken, allDecisions, currentIndex, record) {
   // We check the confidence of the next token too,
   //   and may merge it into the address as well
-  subsequent_class = subsequentIsNotConfident(allDecisions, currentIndex)
-  if (subsequent_class == 'occupationComponent') {
-    allDecisions[currentIndex + 1].winningClass = ['addressComponent', 1.0]
+  subsequentClass = subsequentIsNotConfident(allDecisions, currentIndex)
+  if (subsequentClass === 'occupationComponent') {
+    allDecisions[currentIndex + 1].winningClass = ['addressComponent', 1]
   }
 
   const location = {
     value: parsedToken.token
   }
 
-  if (parsedToken['additional']) {
-    parsedToken['additional'].forEach((obj) => {
-      pair = Object.entries(obj)[0]
-      k = pair[0]
-      v = pair[1]
-      location[k] = v
+  if (parsedToken.additional) {
+    parsedToken.additional.forEach((obj) => {
+      const pair = Object.entries(obj)[0]
+      Object.assign(location, {
+        [pair[0]]: pair[1]
+      })
     })
   }
+
   mr = mergeIfDirectlySubsequentIsAlike(allDecisions, currentIndex, 'addressComponent')
   if (mr) {
     allDecisions[currentIndex + 1] = mr
   } else {
-    record['location'].push(location)
+    record.location.push(location)
   }
 }
 
-function mergeIfDirectlySubsequentIsAlike (decisions, currentIndex, current_token_class) {
+function mergeIfDirectlySubsequentIsAlike (decisions, currentIndex, currentTokenClass) {
   if (currentIndex + 1 < decisions.length) {
     const nextDecision = decisions[currentIndex + 1]
-    if (nextDecision['winningClass'][0] == current_token_class) {
-      nextDecision['token'] = decisions[currentIndex]['token'] + ' ' + nextDecision['token']
-      if (decisions[currentIndex]['additional']) {
-        if (nextDecision['additional']) {
-          nextDecision['additional'].concat(decisions[currentIndex]['additional'])
+    if (nextDecision.winningClass[0] == currentTokenClass) {
+      nextDecision.token = decisions[currentIndex].token + ' ' + nextDecision.token
+      if (decisions[currentIndex].additional) {
+        if (nextDecision.additional) {
+          nextDecision.additional.concat(decisions[currentIndex].additional)
         } else {
-          nextDecision['additional'] = decisions[currentIndex]['additional']
+          nextDecision.additional = decisions[currentIndex].additional
         }
       }
       return nextDecision
