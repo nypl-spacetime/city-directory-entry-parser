@@ -4,7 +4,7 @@ const lunr = require('lunr')
 
 // Create occupations index using lunr
 const occupations = require(path.join(__dirname, 'data', 'consolidated-occupations.json'))
-const job_idx = lunr(function () {
+const occupationIndex = lunr(function () {
   this.ref('id')
   this.field('value')
 
@@ -13,7 +13,7 @@ const job_idx = lunr(function () {
   }, this)
 })
 
-function job_probability_score (token, index) {
+function occupationProbabilityScore (token, index) {
   if (index.search(token).length > 0) {
     return 1.5
   } else if (index.search(`${token}~1`).length > 0) {
@@ -64,14 +64,11 @@ class TokenInterpret {
 }
 
 function tokenize (line) {
-  t1 = line.split(/(,|\.\s)/).map((elem) => {
-    return elem.trim()
-  })
-  t2 = t1.filter((elem) => {
-    return !(/^\s*[,\.]\s*$/.test(elem))
-  })
+  const token1 = line.split(/(,|\.\s)/).map(R.trim)
+  const token2 = token1.filter((elem) => !(/^\s*[,\.]\s*$/.test(elem)))
+
   t3 = []
-  t2.forEach(function (token) {
+  token2.forEach(function (token) {
     t3 = t3.concat(jitterSplit(token))
   })
   t3 = t3.filter((elem) => {
@@ -100,56 +97,65 @@ function categoryVote (orderedTokens) {
     votes: []
   }))
 
-  orderedTokens.forEach(function (token, i) {
+  orderedTokens.forEach((token, index) => {
     if (TokenInterpret.isShort(token)) {
-      decisions[i]['votes'].push({
-        'predicate': 1.9
+      decisions[index].votes.push({
+        predicate: 1.9
       })
     }
+
     if (TokenInterpret.isKnownPredicate(token)) {
-      decisions[i]['votes'].push({
-        'predicate': 1.9
+      decisions[index].votes.push({
+        predicate: 1.9
       })
     }
+
     if (TokenInterpret.containsNumbers(token)) {
-      decisions[i]['votes'].push({
-        'address_component': 2.0
+      decisions[index].votes.push({
+        addressComponent: 2
       })
     }
-    if (i == 0) {
-      decisions[i]['votes'].push({
-        'nameComponent': 1.0
+
+    if (index === 0) {
+      decisions[index].votes.push({
+        nameComponent: 1
       })
+
       if (!TokenInterpret.containsNumbers(token)) {
-        decisions[i]['votes'].push({
-          'nameComponent': 1.0
+        decisions[index].votes.push({
+          nameComponent: 1
         })
       }
-    } // End first token
+    }
+
+    // End first token
     if (token.length > 2 && TokenInterpret.percentUppercase(token) > 0.5) {
-      decisions[i]['votes'].push({
-        'nameComponent': 2.0
+      decisions[index].votes.push({
+        nameComponent: 2.0
       })
     }
-    decisions[i]['votes'].push({
-      'job_component': job_probability_score(token, job_idx)
+
+    decisions[index].votes.push({
+      occupationComponent: occupationProbabilityScore(token, occupationIndex)
     })
+
     if (TokenInterpret.noWhiteSpace(token)) {
-      decisions[i]['votes'].push({
-        'address_component': 0.5
+      decisions[index].votes.push({
+        addressComponent: 0.5
       })
     }
   })
+
   return decisions
 }
 
-function most_likely_class (token_decision_object_array) {
+function mostLikelyClass (token_decision_object_array) {
   return token_decision_object_array.map((entry) => {
     modified_entry = entry
     sums = {
-      'job_component': 0.0,
+      'occupationComponent': 0.0,
       'nameComponent': 0.0,
-      'address_component': 0.0,
+      'addressComponent': 0.0,
       'predicate': 0.0,
       'ambiguous': 0.0
     }
@@ -164,8 +170,8 @@ function most_likely_class (token_decision_object_array) {
   })
 }
 
-function winner_take_all (array_most_likely_classes) {
-  return array_most_likely_classes.map((entry) => {
+function winnerTakeAll (array_mostLikelyClasses) {
+  return array_mostLikelyClasses.map((entry) => {
     modified_entry = entry
     modified_entry['winningClass'] = Object.entries(entry['sums']).reduce((acc, val) => {
       return (val[1] > acc[1]) ? val : acc
@@ -177,9 +183,9 @@ function winner_take_all (array_most_likely_classes) {
 function recount_votes (token_decision_object) {
   modified_entry = token_decision_object
   sums = {
-    'job_component': 0.0,
+    'occupationComponent': 0.0,
     'nameComponent': 0.0,
-    'address_component': 0.0,
+    'addressComponent': 0.0,
     'predicate': 0.0,
     'ambiguous': 0.0
   }
@@ -197,9 +203,9 @@ function recount_votes (token_decision_object) {
 }
 
 function createLabeledRecord (line) {
-  return consolidate_features(
-    winner_take_all(
-      most_likely_class(
+  return consolidateFeatures(
+    winnerTakeAll(
+      mostLikelyClass(
         categoryVote(
           tokenize(line)
         )
@@ -208,91 +214,82 @@ function createLabeledRecord (line) {
   )
 }
 
-function previous_winningClass (decision_list, currentIndex) {
-  if (currentIndex - 1 >= 0) {
-    return decision_list[currentIndex - 1]['winningClass'][0]
-  }
-}
-
-function modify_probability_of_subsequent (list_of_acceptable, vote, decisions, curr_index) {
-  if (curr_index + 1 < decisions.length) {
-    next_decision = decisions[curr_index + 1]
-    if (next_decision['winningClass'] != Object.keys(vote)[0] && list_of_acceptable.includes(next_decision['winningClass'][0])) {
-      decisions[curr_index + 1].votes.push(vote)
-      decisions[curr_index + 1] = recount_votes(decisions[curr_index + 1])
-      return [decisions[curr_index + 1], curr_index]
+function modifyProbabilityOfSubsequent (acceptable, vote, decisions, currentIndex) {
+  if (currentIndex + 1 < decisions.length) {
+    nextDecision = decisions[currentIndex + 1]
+    if (nextDecision.winningClass != Object.keys(vote)[0] && acceptable.includes(nextDecision.winningClass[0])) {
+      decisions[currentIndex + 1].votes.push(vote)
+      decisions[currentIndex + 1] = recount_votes(decisions[currentIndex + 1])
+      return [decisions[currentIndex + 1], currentIndex]
     } else {
-      return modify_probability_of_subsequent(list_of_acceptable, vote, decisions, curr_index + 1)
+      return modifyProbabilityOfSubsequent(acceptable, vote, decisions, currentIndex + 1)
     }
   }
 }
 
-function subsequent_is_not_confident (decision_list, currentIndex) {
-  if (currentIndex + 1 < decision_list.length) {
-    next_decision = decision_list[currentIndex + 1]
-    if (next_decision['winningClass'][1] < 1.0) {
-      return next_decision['winningClass'][0]
+function subsequentIsNotConfident (decisions, currentIndex) {
+  if (currentIndex + 1 < decisions.length) {
+    nextDecision = decisions[currentIndex + 1]
+    if (nextDecision.winningClass[1] < 1) {
+      return nextDecision.winningClass[0]
     }
   }
 }
 
-/* Returns a record with labeled attributes */
-function consolidate_features (all_decisions) {
+// Returns a record with labeled attributes
+function consolidateFeatures (allDecisions) {
   record = {
     'subject': [],
     'location': []
   }
-  all_decisions.forEach((token, index) => {
-    parsed_class = token['winningClass'][0]
-    token_value = token['token']
-    /* token_value = token['token']
-    if (index == 0 && parsed_class == 'nameComponent') {
+  allDecisions.forEach((token, index) => {
+    parsedClass = token.winningClass[0]
+    tokenValue = token.token
 
-    } else { */
-    switch (parsed_class) {
+    switch (parsedClass) {
       case 'nameComponent':
-        mr = merge_if_directly_subsequent_is_alike(all_decisions, index, token['winningClass'][0])
+        mr = mergeIfDirectlySubsequentIsAlike(allDecisions, index, token.winningClass[0])
         if (mr) {
-          all_decisions[index + 1] = mr
+          allDecisions[index + 1] = mr
         } else {
-          record['subject'].push({
-            'value': token_value,
-            'type': 'primary'
+          record.subject.push({
+            value: tokenValue,
+            type: 'primary'
           })
         }
         break
-      case 'job_component':
-        if (!record['subject'].length == 0) {
-          record['subject'][0]['occupation'] = token_value
+      case 'occupationComponent':
+        if (!record.subject.length == 0) {
+          record.subject[0].occupation = tokenValue
         }
         break
       case 'predicate':
-        switch (token_value) {
+        switch (tokenValue) {
           case 'wid':
-            if (!record['subject'].length == 0) {
-              record['subject'][0]['occupation'] = 'widow'
+            if (!record.subject.length == 0) {
+              record.subject[0].occupation = 'widow'
             }
-            deceased_name = lookForNameOfDeceased(all_decisions, index)
+            deceased_name = lookForNameOfDeceased(allDecisions, index)
             if (deceased_name) {
-              record['subject'].push({
-                'value': deceased_name,
-                'type': 'deceased spouse of primary'
+              record.subject.push({
+                value: deceased_name,
+                type: 'deceased spouse of primary'
               })
             }
             break
           case 'h':
-            modify_probability_of_subsequent(['job_component', 'nameComponent'], {
-              'address_component': 1.0
-            }, all_decisions, index)
-            attach_to_next(all_decisions, index, 'address_component', [{
+            modifyProbabilityOfSubsequent(['occupationComponent', 'nameComponent'], {
+              'addressComponent': 1.0
+            }, allDecisions, index)
+            attachToNext(allDecisions, index, 'addressComponent', [{
               'type': 'home'
             }])
             break
           case 'r':
-            modify_probability_of_subsequent(['job_component', 'nameComponent'], {
-              'address_component': 1.0
-            }, all_decisions, index)
-            attach_to_next(all_decisions, index, 'address_component', [{
+            modifyProbabilityOfSubsequent(['occupationComponent', 'nameComponent'], {
+              'addressComponent': 1.0
+            }, allDecisions, index)
+            attachToNext(allDecisions, index, 'addressComponent', [{
               'position': 'rear'
             }])
             break
@@ -301,92 +298,93 @@ function consolidate_features (all_decisions) {
             // name –– e.g. 'A' is part of the name 'SMITH JOHN A'
 
             // check if last token was parsed as a name; if so, add it to the name
-            if (all_decisions[index - 1]) {
-              if (all_decisions[index - 1]['winningClass'][0] == 'nameComponent') {
+            if (allDecisions[index - 1]) {
+              if (allDecisions[index - 1]['winningClass'][0] == 'nameComponent') {
                 if (record['subject'][0]) {
-                  record['subject'][0]['value'] = record['subject'][0]['value'] + ' ' + token_value
+                  record['subject'][0]['value'] = record['subject'][0]['value'] + ' ' + tokenValue
                 }
-              } else if (TokenInterpret.matchesCardinalDir(token_value)) {
-                console.log('treating as address: ' + token_value)
-                treat_token_as_address_component(token, all_decisions, index, record)
+              } else if (TokenInterpret.matchesCardinalDir(tokenValue)) {
+                console.log('treating as address: ' + tokenValue)
+                treat_token_as_addressComponent(token, allDecisions, index, record)
               }
             }
             break
 
         }
         break
-      case 'address_component':
-        treat_token_as_address_component(token, all_decisions, index, record)
+      case 'addressComponent':
+        treat_token_as_addressComponent(token, allDecisions, index, record)
         break
     }
   })
   return record
 }
 
-function treat_token_as_address_component (parsed_token, all_decisions, currentIndex, record) {
-  /* We check the confidence of the next token too,
-    and may merge it into the address as well */
-  subsequent_class = subsequent_is_not_confident(all_decisions, currentIndex)
-  if (subsequent_class == 'job_component') {
-    all_decisions[currentIndex + 1]['winningClass'] = ['address_component', 1.0]
+function treat_token_as_addressComponent (parsedToken, allDecisions, currentIndex, record) {
+  // We check the confidence of the next token too,
+  //   and may merge it into the address as well
+  subsequent_class = subsequentIsNotConfident(allDecisions, currentIndex)
+  if (subsequent_class == 'occupationComponent') {
+    allDecisions[currentIndex + 1].winningClass = ['addressComponent', 1.0]
   }
-  loc = {
-    'value': parsed_token['token']
+
+  const location = {
+    value: parsedToken.token
   }
-  if (parsed_token['additional']) {
-    parsed_token['additional'].forEach((obj) => {
+
+  if (parsedToken['additional']) {
+    parsedToken['additional'].forEach((obj) => {
       pair = Object.entries(obj)[0]
       k = pair[0]
       v = pair[1]
-      loc[k] = v
+      location[k] = v
     })
   }
-  mr = merge_if_directly_subsequent_is_alike(all_decisions, currentIndex, 'address_component')
+  mr = mergeIfDirectlySubsequentIsAlike(allDecisions, currentIndex, 'addressComponent')
   if (mr) {
-    all_decisions[currentIndex + 1] = mr
+    allDecisions[currentIndex + 1] = mr
   } else {
-    record['location'].push(loc)
+    record['location'].push(location)
   }
 }
 
-function merge_if_directly_subsequent_is_alike (decision_list, currentIndex, current_token_class) {
-  if (currentIndex + 1 < decision_list.length) {
-    next_decision = decision_list[currentIndex + 1]
-    if (next_decision['winningClass'][0] == current_token_class) {
-      next_decision['token'] = decision_list[currentIndex]['token'] + ' ' + next_decision['token']
-      if (decision_list[currentIndex]['additional']) {
-        if (next_decision['additional']) {
-          next_decision['additional'].concat(decision_list[currentIndex]['additional'])
+function mergeIfDirectlySubsequentIsAlike (decisions, currentIndex, current_token_class) {
+  if (currentIndex + 1 < decisions.length) {
+    const nextDecision = decisions[currentIndex + 1]
+    if (nextDecision['winningClass'][0] == current_token_class) {
+      nextDecision['token'] = decisions[currentIndex]['token'] + ' ' + nextDecision['token']
+      if (decisions[currentIndex]['additional']) {
+        if (nextDecision['additional']) {
+          nextDecision['additional'].concat(decisions[currentIndex]['additional'])
         } else {
-          next_decision['additional'] = decision_list[currentIndex]['additional']
+          nextDecision['additional'] = decisions[currentIndex]['additional']
         }
       }
-      return next_decision
+      return nextDecision
     }
   }
-  return false
 }
 
-function attach_to_next (class_list, currentIndex, match_class, attributes) {
-  if (currentIndex + 1 < class_list.length) {
-    nextClass = class_list[currentIndex + 1]
-    if (nextClass['winningClass'][0] == match_class) {
-      attributes.forEach((att) => {
-        if (nextClass['additional']) {
-          nextClass['additional'].push(att)
+function attachToNext (classes, currentIndex, matchClass, attributes) {
+  if (currentIndex + 1 < classes.length) {
+    const nextClass = classes[currentIndex + 1]
+    if (nextClass.winningClass[0] === matchClass) {
+      attributes.forEach((attribute) => {
+        if (nextClass.additional) {
+          nextClass.additional.push(attribute)
         } else {
-          nextClass['additional'] = [att]
+          nextClass.additional = [attribute]
         }
       })
     } else {
-      attach_to_next(class_list, currentIndex + 1, match_class, attributes)
+      attachToNext(classes, currentIndex + 1, matchClass, attributes)
     }
   }
 }
 
 function lookForNameOfDeceased (classes, currentIndex) {
   if (currentIndex + 1 < classes.length) {
-    nextClass = classes[currentIndex + 1]
+    const nextClass = classes[currentIndex + 1]
     if (nextClass.winningClass[0] === 'nameComponent' || nextClass.winningClass[1] <= 0.5) {
       // we check if the next class is either a nameComponent, or had a low confidence
       nextClass.winningClass[0] = 'alreadyConsidered'
