@@ -1,3 +1,5 @@
+/* global describe, it */
+
 const parser = require('../')
 const chai = require('chai')
 const expect = chai.expect

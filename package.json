@@ -7,6 +7,7 @@
     "city-directory-entry-parser": "index.js"
   },
   "scripts": {
+    "mocha": "mocha",
     "test": "npm run lint && mocha",
     "lint": "standard index.js test/index.js"
   },
