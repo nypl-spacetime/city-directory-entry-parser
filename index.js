@@ -144,10 +144,8 @@ function categoryVote (orderedTokens) {
   return decisions
 }
 
-function mostLikelyClass (token_decision_object_array) {
-  return token_decision_object_array.map((entry) => {
-    modified_entry = entry
-
+function mostLikelyClass (tokenDecisions) {
+  return tokenDecisions.map((entry) => {
     const sums = {
       occupationComponent: 0,
       nameComponent: 0,
@@ -157,31 +155,30 @@ function mostLikelyClass (token_decision_object_array) {
     }
 
     entry.votes.forEach((vote) => {
-      entries = Object.entries(vote)
-      k = entries[0][0]
-      v = entries[0][1]
-      sums[k] += v
+      const entries = Object.entries(vote)
+      const key = entries[0][0]
+      const value = entries[0][1]
+      sums[key] += value
     })
 
-    modified_entry.sums = sums
-    return modified_entry
+    return Object.assign(entry, {
+      sums
+    })
   })
 }
 
 function winnerTakeAll (mostLikelyClasses) {
   return mostLikelyClasses.map((entry) => {
-    modified_entry = entry
-    modified_entry.winningClass = Object.entries(entry.sums).reduce((acc, val) => {
-      return (val[1] > acc[1]) ? val : acc
-    })
+    const winningClass = Object.entries(entry.sums)
+      .reduce((acc, val) => (val[1] > acc[1]) ? val : acc)
 
-    return modified_entry
+    return Object.assign(entry, {
+      winningClass
+    })
   })
 }
 
-function recountVotes (token_decision_object) {
-  modified_entry = token_decision_object
-
+function recountVotes (tokenDecisions) {
   const sums = {
     occupationComponent: 0,
     nameComponent: 0,
@@ -190,19 +187,20 @@ function recountVotes (token_decision_object) {
     ambiguous: 0
   }
 
-  token_decision_object.votes.forEach((vote) => {
+  tokenDecisions.votes.forEach((vote) => {
     const entries = Object.entries(vote)
     const key = entries[0][0]
     const value = entries[0][1]
     sums[key] += value
   })
 
-  modified_entry.sums = sums
-  modified_entry.winningClass = Object.entries(modified_entry.sums).reduce((acc, val) => {
-    return (val[1] > acc[1]) ? val : acc
-  })
+  const winningClass = Object.entries(tokenDecisions.sums)
+      .reduce((acc, val) => (val[1] > acc[1]) ? val : acc)
 
-  return modified_entry
+  return Object.assign(tokenDecisions, {
+    sums,
+    winningClass
+  })
 }
 
 function createLabeledRecord (line) {
