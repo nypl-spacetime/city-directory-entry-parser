@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const path = require('path')
 const R = require('ramda')
 const lunr = require('lunr')
