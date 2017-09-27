@@ -1,6 +1,6 @@
 # city-directory-entry-parser
 
-city-directory-entry-parser parses lines from OCR’d [New York City directories](https://digitalcollections.nypl.org/search/index?utf8=%E2%9C%93&keywords=city+directories) into seperate fields, such as names, occupations, and addresses.
+city-directory-entry-parser parses lines from OCR’d [New York City directories](https://digitalcollections.nypl.org/search/index?utf8=%E2%9C%93&keywords=city+directories) into separate fields, such as names, occupations, and addresses.
 
 city-directory-entry-parser is part of NYPL’s [NYC Space/Time Directory](http://spacetime.nypl.org) project.
 
