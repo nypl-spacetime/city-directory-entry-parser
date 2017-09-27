@@ -16,6 +16,14 @@ const occupationIndex = lunr(function () {
 })
 
 function occupationProbabilityScore (token, index) {
+  const minLength = 2
+  const maxLength = 15
+  const maxNumberCount = 3
+
+  if (token.length < minLength || token.length > maxLength || (token.match(/\d/g) || []).length > maxNumberCount) {
+    return -1
+  }
+
   if (index.search(token).length > 0) {
     return 1.5
   } else if (index.search(`${token}~1`).length > 0) {
