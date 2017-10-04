@@ -6,6 +6,8 @@ city-directory-entry-parser is part of NYPL’s [NYC Space/Time Directory](http:
 
 For more tools that are used to turn digitized city directories into datasets, see Space/Time’s [City Directories repository](https://github.com/nypl-spacetime/city-directories).
 
+This module relies on the [sklearn-crfsuite](https://sklearn-crfsuite.readthedocs.io/en/latest/) implementation of a conditional random fields algorithm.
+
 ## Example
 
 ![](example.jpg)
@@ -43,11 +45,14 @@ From Python:
 ```python
 from cdparser import Classifier, Features, LabeledEntry, Utils
 
+## Create a classifier object and load some labeled data from a CSV
 classifier = Classifier.Classifier()
 classifier.load_training("/full/path/to/training/nypl-labeled-train.csv")
 
 ## Optionally, load validation dataset
 classifier.load_validation("/full/path/to/validation/nypl-labeled-validate.csv")
+
+## Train your classifier (with default settings)
 classifier.train()
 
 ## Create an entry object from string
