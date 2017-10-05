@@ -41,7 +41,6 @@ class LabeledEntry:
             self.categories = categories
             return self
 
-
     def __str__(self):
         if self.is_parsed:
             return Utils.to_pretty_string(self.tokens, self.token_labels)

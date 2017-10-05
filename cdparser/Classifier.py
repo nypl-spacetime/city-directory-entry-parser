@@ -92,8 +92,3 @@ class Classifier:
             labeled_entry.is_parsed = True
             labeled_entry.reduce_labels()
             return labeled_entry
-
-
-
-
-
