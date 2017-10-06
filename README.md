@@ -14,29 +14,27 @@ This module relies on the [sklearn-crfsuite](https://sklearn-crfsuite.readthedoc
 
 Input:
 
-    "Bebee Samuel, carpenter, h 668 Sixth av."
+    "Calder William W, clerk, 206 W. 24th"
 
 Output:
 
 ```json
 {
-  "subject": [
-    {
-      "value": "Bebee Samuel",
-      "type": "primary",
-      "occupation": "carpenter"
-    }
+  "subjects": [
+    "Calder William W"
   ],
-  "location": [
-    {
-      "value": "668 Sixth av.",
-      "type": "home"
-    }
+  "occupations": [
+    "clerk"
+  ],
+  "addresses": [
+    [
+      "206 W . 24th"
+    ]
   ]
 }
 ```
 
-If the output contains a `location` field with a street address, [nyc-street-normalizer](https://github.com/nypl-spacetime/nyc-street-normalizer) can be used to turn this abbreviated address into a full address (e.g. `668 Sixth av.` ⟶ `668 Sixth Avenue`).
+If the output contains an `address` field, [nyc-street-normalizer](https://github.com/nypl-spacetime/nyc-street-normalizer) can be used to turn this abbreviated address into a full address (e.g. `668 Sixth av.` ⟶ `668 Sixth Avenue`).
 
 ## Installation & usage
 
@@ -63,6 +61,11 @@ classifier.label(entry)
 
 ## Export the labeled entry as JSON
 json.dumps(entry.categories)
+```
+
+From bash (using `parse.py`):
+```bash
+cat /path/to/nypl-1851-1852-entries-sample.txt | python3 parse.py --training /path/to/nypl-labeled-70-training.csv
 ```
 
 
