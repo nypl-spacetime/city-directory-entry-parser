@@ -6,53 +6,68 @@ city-directory-entry-parser is part of NYPL’s [NYC Space/Time Directory](http:
 
 For more tools that are used to turn digitized city directories into datasets, see Space/Time’s [City Directories repository](https://github.com/nypl-spacetime/city-directories).
 
+This module relies on the [sklearn-crfsuite](https://sklearn-crfsuite.readthedocs.io/en/latest/) implementation of a conditional random fields algorithm.
+
 ## Example
 
 ![](example.jpg)
 
 Input:
 
-    "Bebee Samuel, carpenter, h 668 Sixth av."
+    "Calder William W, clerk, 206 W. 24th"
 
 Output:
 
 ```json
 {
-  "subject": [
-    {
-      "value": "Bebee Samuel",
-      "type": "primary",
-      "occupation": "carpenter"
-    }
+  "subjects": [
+    "Calder William W"
   ],
-  "location": [
-    {
-      "value": "668 Sixth av.",
-      "type": "home"
-    }
+  "occupations": [
+    "clerk"
+  ],
+  "addresses": [
+    [
+      "206 W . 24th"
+    ]
   ]
 }
 ```
 
-If the output contains a `location` field with a street address, [nyc-street-normalizer](https://github.com/nypl-spacetime/nyc-street-normalizer) can be used to turn this abbreviated address into a full address (e.g. `668 Sixth av.` ⟶ `668 Sixth Avenue`).
+If the output contains an `address` field, [nyc-street-normalizer](https://github.com/nypl-spacetime/nyc-street-normalizer) can be used to turn this abbreviated address into a full address (e.g. `668 Sixth av.` ⟶ `668 Sixth Avenue`).
 
 ## Installation & usage
 
-From Node.js:
+From Python:
 
-    npm install --save nypl-spacetime/city-directory-entry-parser
+```python
+from cdparser import Classifier, Features, LabeledEntry, Utils
 
-```js
-const parser = require('@spacetime/city-directory-entry-parser')
+## Create a classifier object and load some labeled data from a CSV
+classifier = Classifier.Classifier()
+classifier.load_training("/full/path/to/training/nypl-labeled-train.csv")
 
-console.log(parser('Pfeffer Conrad, cabinetmaker, h. 478 Twelfth'))
+## Optionally, load validation dataset
+classifier.load_validation("/full/path/to/validation/nypl-labeled-validate.csv")
+
+## Train your classifier (with default settings)
+classifier.train()
+
+## Create an entry object from string
+entry = LabeledEntry.LabeledEntry("Cappelmann Otto, grocer, 133 VVashxngton, & liquors, 170 Greenwich, h. 109 Cedar")
+
+## Pass the entry to the classifier
+classifier.label(entry)
+
+## Export the labeled entry as JSON
+json.dumps(entry.categories)
 ```
 
-From the command line:
+From bash (using `parse.py`):
+```bash
+cat /path/to/nypl-1851-1852-entries-sample.txt | python3 parse.py --training /path/to/nypl-labeled-70-training.csv
+```
 
-    npm install -g nypl-spacetime/city-directory-entry-parser
-
-    city-directory-entry-parser "Pfeffer Conrad, cabinetmaker, h. 478 Twelfth"
 
 ## See also
 

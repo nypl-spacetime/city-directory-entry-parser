@@ -1,0 +1,15 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+numpy
+sklearn
+nltk
+scipy
+sklearn_crfsuite
+[dev-packages]
+
+[requires]
+python_version = "3.6"
