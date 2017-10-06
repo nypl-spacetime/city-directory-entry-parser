@@ -1,5 +1,9 @@
 import csv
+import fileinput
+import json
+import sys
 from cdparser.Features import Features
+from cdparser.LabeledEntry import LabeledEntry
 import sklearn_crfsuite
 from sklearn_crfsuite import metrics
 
@@ -38,6 +42,11 @@ class Classifier:
         labeled_data.append(example)
         return labeled_data
 
+    def listen(self):
+        for line in fileinput.input(sys.argv[3:]):
+            entry = LabeledEntry(line.rstrip())
+            print(json.dumps(self.label(entry).categories))
+
     def load_training(self, path_to_csv, rows_to_ignore=0):
         self.training_set_labeled = self.load_labeled_data(path_to_csv, rows_to_ignore)
         self.__process_training_data()
@@ -61,7 +70,7 @@ class Classifier:
             c2=0.1,
             max_iterations=1000,
             all_possible_transitions=False,
-            verbose=True
+            verbose=False
             )
         self.crf.fit(self.training_set_features, self.training_set_labels)
 
