@@ -36,6 +36,16 @@ Output:
 
 If the output contains an `address` field, [nyc-street-normalizer](https://github.com/nypl-spacetime/nyc-street-normalizer) can be used to turn this abbreviated address into a full address (e.g. `668 Sixth av.` ⟶ `668 Sixth Avenue`).
 
+## Prerequisites
+
+city-directory-entry-parser depends on the following Python modules:
+
+- `numpy`
+- `sklearn`
+- `nltk`
+- `scipy`
+- `sklearn_crfsuite`
+
 ## Installation & usage
 
 From Python:
@@ -67,7 +77,6 @@ From bash (using `parse.py`):
 ```bash
 cat /path/to/nypl-1851-1852-entries-sample.txt | python3 parse.py --training /path/to/nypl-labeled-70-training.csv
 ```
-
 
 ## See also
 
