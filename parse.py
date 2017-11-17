@@ -7,6 +7,9 @@ parser.add_argument('--training', help='path to training CSV file')
 args = vars(parser.parse_args())
 training_path = args['training']
 
+if not training_path:
+  raise ValueError('Please supply path to training data with the --traning argument')
+
 classifier = Classifier.Classifier()
 classifier.load_training(training_path)
 classifier.train()
