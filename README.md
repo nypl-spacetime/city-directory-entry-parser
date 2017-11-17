@@ -74,3 +74,4 @@ cat /path/to/nypl-1851-1852-entries-sample.txt | python3 parse.py --training /pa
   - [NYC Space/Time Directory](http://spacetime.nypl.org)
   - [hocr-detect-columns](https://github.com/nypl-spacetime/hocr-detect-columns)
   - [nyc-street-normalizer](https://github.com/nypl-spacetime/nyc-street-normalizer)
+  - [Extracting Structured Data From Recipes Using Conditional Random Fields - New York Times](https://open.blogs.nytimes.com/2015/04/09/extracting-structured-data-from-recipes-using-conditional-random-fields)
