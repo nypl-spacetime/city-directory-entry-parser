@@ -8,36 +8,46 @@ class LabeledEntry:
         self.is_parsed = False
         self.categories = None
 
+    # reduce_labels() creates a best-guess record from a sequence of predicted labels
     def reduce_labels(self):
         if self.categories == None:
             categories = {
                 'subjects': [],
                 'occupations': [],
-                'addresses': []
+                'locations': []
             }
-            current_label = None
-            current_entity = ""
-            current_predicate = ""
+            # We use the three vars below to construct record inputs as we iterate
+            # through the sequence of labels
+            constructing_label = None
+            constructing_entity = ""
+            constructing_predicate = ""
             for label, token_tuple in zip(self.token_labels, self.tokens):
-                if current_label == label:
-                    current_entity += " " + token_tuple[0]
-                else:
-                    if current_label == 'NC':
-                        categories['subjects'].append(current_entity)
-                    elif current_label == 'OC':
-                        categories['occupations'].append(current_entity)
-                    elif current_label == 'AC':
-                        address = [current_entity]
-                        if len(current_predicate) != 0:
-                            address.append(current_predicate)
-                            current_predicate = ""
-                        categories['addresses'].append(address)
-                    current_entity = ""
-                    current_label = label
-                    if current_label == "PA":
-                        current_predicate += token_tuple[0]
+                token = token_tuple[0] # 'token' gets the actual text of the token
+                if constructing_label == label:
+                    # If the previously seen label is the same as the current, we simply append
+                    if constructing_label == "PA":
+                        constructing_predicate += " " + token
                     else:
-                        current_entity += token_tuple[0]
+                        constructing_entity += " " + token
+                else:
+                    # Otherwise, we have a new label, and have to clean up when is currently
+                    # stored in the 'constructing_' vars...
+                    if constructing_label == 'NC':
+                        categories['subjects'].append(constructing_entity)
+                    elif constructing_label == 'OC':
+                        categories['occupations'].append(constructing_entity)
+                    elif constructing_label == 'AC':
+                        location = {'value': constructing_entity}
+                        if len(constructing_predicate) != 0:
+                            location['labels'] = list(filter(None, constructing_predicate.split(" .")))
+                            constructing_predicate = ""
+                        categories['locations'].append(location)
+                    constructing_entity = ""
+                    constructing_label = label
+                    if constructing_label == "PA":
+                        constructing_predicate += token
+                    else:
+                        constructing_entity += token
             self.categories = categories
             return self
 
